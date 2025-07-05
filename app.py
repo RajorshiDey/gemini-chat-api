@@ -5,10 +5,12 @@ from langchain_core.exceptions import OutputParserException
 import os
 import time
 from flask_cors import CORS
-CORS(app)
+
 
 
 app = Flask(__name__)
+
+CORS(app)
 
 # ==== API Keys and Models ====
 GEMINI_API_KEYS = [
