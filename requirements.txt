@@ -1,3 +1,4 @@
-Flask
+flask
+flask-cors
+google-generativeai
 langchain
-langchain-google-genai
