@@ -39,30 +39,44 @@ def get_llm(api_key, model_name):
 def try_chat_with_failover(user_message):
     global current_key_index, current_model_index
 
-    max_attempts = len(GEMINI_API_KEYS) * len(GEMINI_MODELS)
-    attempts = 0
+    total_keys = len(GEMINI_API_KEYS)
+    total_models = len(GEMINI_MODELS)
 
-    while attempts < max_attempts:
-        api_key = GEMINI_API_KEYS[current_key_index]
-        model = GEMINI_MODELS[current_model_index]
+    for key_offset in range(total_keys):
+        for model_offset in range(total_models):
+            key_index = (current_key_index + key_offset) % total_keys
+            model_index = (current_model_index + model_offset) % total_models
 
-        try:
-            llm = get_llm(api_key, model)
-            response = llm.invoke([HumanMessage(content=user_message)])
-            return response.content
+            api_key = GEMINI_API_KEYS[key_index]
+            model = GEMINI_MODELS[model_index]
 
-        except (OutputParserException, ValueError):
-            current_model_index = (current_model_index + 1) % len(GEMINI_MODELS)
+            print(f"🔁 Trying key {key_index + 1}/{total_keys} | Model: {model}")
 
-        except Exception as e:
-            current_key_index = (current_key_index + 1) % len(GEMINI_API_KEYS)
-            current_model_index = 0
+            try:
+                llm = get_llm(api_key, model)
+                response = llm.invoke([HumanMessage(content=user_message)])
+                
+                # ✅ Update global state on success
+                current_key_index = key_index
+                current_model_index = model_index
+                return response.content
+            
+            except OutputParserException:
+                print(f"⚠️ Output parsing failed on {model}, trying next model.")
+                continue
 
-        attempts += 1
-        time.sleep(1)
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "ResourceExhausted" in error_str:
+                    print(f"❌ Rate limit hit for {model} using key {key_index}. Trying next key.")
+                    continue
+                else:
+                    print(f"❌ Unexpected error: {e}")
+                    continue  # Don't break; keep trying other key+model pairs
+
+            time.sleep(1) # Optional: short delay to respect quotas
 
     return "❌ All API keys and models failed. Try again later."
-
 
 # ==== Flask Route ====
 @app.route('/chat', methods=['POST'])
