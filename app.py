@@ -4,6 +4,9 @@ from langchain.schema import HumanMessage
 from langchain_core.exceptions import OutputParserException
 import os
 import time
+from flask_cors import CORS
+CORS(app)
+
 
 app = Flask(__name__)
 
